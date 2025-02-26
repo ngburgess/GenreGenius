@@ -17,8 +17,10 @@ from pydub import AudioSegment
 
 from concurrent.futures import ThreadPoolExecutor
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
+
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -124,35 +126,42 @@ def convert_to_wav(url):
 
     return output_file
 
-@app.route("/predict", methods=["POST"])
+@app.route("/predict", methods=["GET"])
 def predict():
-    data = request.json
-    url = data.get("url")
+    url = request.args.get("url")
+    if not url:
+        return jsonify({"error": "Missing YouTube URL"}), 400
 
-    try:
-        song_file = convert_to_wav(url)
-        extracted_features = extract_full_features(song_file)
-        features_df = pd.DataFrame(extracted_features, columns=features.columns)
-        scaled_features = scaler.transform(features_df)
-        features_tensor = torch.tensor(scaled_features, dtype=torch.float32).to(device)
-        os.remove(song_file)
+    def generate():
+        try:
+            yield "event: progress\ndata: Converting to WAV...\n\n"
+            song_file = convert_to_wav(url)
 
-        model.eval()
-        with torch.no_grad():
-            outputs = model(features_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-    
-            genre_probabilities = {}
-            for idx, probability in enumerate(probabilities[0]):
-                genre = label_encoder.inverse_transform([idx])[0]
-                genre_probabilities[genre] = probability.item() * 100
+            yield "event: progress\ndata: Extracting audio features...\n\n"
+            extracted_features = extract_full_features(song_file)
+            features_df = pd.DataFrame(extracted_features, columns=features.columns)
+            scaled_features = scaler.transform(features_df)
+            features_tensor = torch.tensor(scaled_features, dtype=torch.float32).to(device)
+            os.remove(song_file)
 
-            sorted_genre_probabilities = dict(sorted(genre_probabilities.items(), key=lambda x: x[1], reverse=True))
+            yield "event: progress\ndata: Predicting genre...\n\n"
+            model.eval()
+            with torch.no_grad():
+                outputs = model(features_tensor)
+                probabilities = torch.nn.functional.softmax(outputs, dim=1)
 
-            return jsonify({"genre_probabilities": sorted_genre_probabilities})
+                genre_probabilities = {
+                    label_encoder.inverse_transform([idx])[0]: probability.item() * 100
+                    for idx, probability in enumerate(probabilities[0])
+                }
+                sorted_genre_probabilities = dict(sorted(genre_probabilities.items(), key=lambda x: x[1], reverse=True))
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+                yield f"event: result\ndata: {json.dumps({'genre_probabilities': sorted_genre_probabilities})}\n\n"
+
+        except Exception as e:
+            yield f"event: error\ndata: {str(e)}\n\n"
+
+    return Response(generate(), content_type="text/event-stream")
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,7 +1,18 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { Bar } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from "chart.js";
+import soundwaves from "./img/sound-wave-png-images-transparent-free-download-pngmartcom-sound-waves-png-1000_237.png";
+
+const genreIcons = {
+  "Blues": "🎹",
+  "Classical": "🎻",
+  "Country": "🪕",
+  "Hip-hop": "🎧",
+  "Jazz": "🎷",
+  "Metal": "👨‍🎤",
+  "Pop": "🎤",
+  "Rock": "🎸",
+};
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -10,49 +21,87 @@ function App() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [predictedGenre, setPredictedGenre] = useState("");
   const [genreProbs, setGenreProbs] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [buttonText, setButtonText] = useState("Predict Genre");
   const [error, setError] = useState("");
 
-  const handlePredict = async () => {
+  const handlePredict = () => {
     if (!youtubeUrl) {
       setError("Please enter a YouTube URL.");
       return;
     }
-
-    setLoading(true);
+  
+    setButtonText("Converting to WAV...");
     setError("");
     setPredictedGenre("");
     setGenreProbs(null);
-
-    try {
-      const response = await axios.post("http://localhost:5000/predict", {
-        url: youtubeUrl,
-      });
-
-      console.log("Genre probabilities:", response.data.genre_probabilities);
-
-      // Extract genre probabilities
-      const genreProbabilities = response.data.genre_probabilities;
-      const genres = Object.keys(genreProbabilities);
-      const probabilities = Object.values(genreProbabilities);
-
-      // Set the predicted genre (highest probability is already first)
-      setPredictedGenre(genres[0]);
-      setGenreProbs({ genres, probabilities });
-
-    } catch (err) {
-      console.error("Error:", err.response ? err.response.data : err.message);
-      setError("Failed to predict genre. Please use official YouTube audio.");
-    } finally {
-      setLoading(false);
-    }
+  
+    const eventSource = new EventSource(`http://localhost:5000/predict?url=${encodeURIComponent(youtubeUrl)}`);
+  
+    eventSource.addEventListener("progress", (event) => {
+      setButtonText(event.data);
+    });
+  
+    eventSource.addEventListener("result", (event) => {
+      const data = JSON.parse(event.data);
+      if (data.genre_probabilities) {
+        const genreProbabilities = data.genre_probabilities;
+        const genres = Object.keys(genreProbabilities);
+        const probabilities = Object.values(genreProbabilities);
+  
+        setPredictedGenre(`${genres[0]} ${genreIcons[genres[0]] || ""}`);
+        setGenreProbs({ genres, probabilities });
+        setButtonText("Predict Genre");
+      }
+      eventSource.close();
+    });
+  
+    eventSource.addEventListener("error", (event) => {
+      console.error("Prediction error:", event.data);
+      setError("Failed to predict genre. Please use official YouTube audio for best results.");
+      setButtonText("Predict Genre");
+      eventSource.close();
+    });
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "50px", fontFamily: "Rajdhani" }}>
-      <h1 style={{"font-size":"50px"}}>GenreGenius</h1>
-      <p>AI-Powered Music Genre Pedictor</p>
-
+    <div style={{ padding: "0px", textAlign: "center", fontFamily: "Rajdhani" }}>
+      <div 
+        style={{ 
+          position: "relative", 
+          display: "inline-block" 
+        }}
+      >
+        <div 
+          style={{
+            position: "absolute",
+            top: 16,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundImage: `linear-gradient(to left, white, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0) 50%, white), url(${soundwaves})`,
+            backgroundSize: "120%",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            opacity: 0.24,
+            filter: "grayscale(100%)",
+            zIndex: -1,
+          }}
+        />
+        {/* Title */}
+        <h1 style={{ 
+          fontSize: "64px", 
+          marginBottom: "10px", 
+          position: "relative",
+          zIndex: 1,
+        }}>
+          GenreGenius
+        </h1>
+      </div>
+  
+      <p style={{ fontSize: "20px", marginBottom: "10px", marginTop: "0px" }}>
+        AI-Powered Music Genre Predictor
+      </p>
+  
       <input
         type="text"
         value={youtubeUrl}
@@ -65,10 +114,10 @@ function App() {
           borderRadius: "5px",
           border: "1px solid #ccc",
           marginBottom: "10px",
-          fontFamily: "Rajdhani"
+          fontFamily: "Rajdhani",
         }}
       />
-
+  
       <br />
       <button
         onClick={handlePredict}
@@ -77,28 +126,26 @@ function App() {
           fontSize: "16px",
           borderRadius: "5px",
           border: "none",
-          backgroundColor: "#007bff",
+          backgroundColor: "#3498db",
           color: "white",
           cursor: "pointer",
-          fontFamily: "Rajdhani"
+          fontFamily: "Rajdhani",
         }}
-        disabled={loading}
+        disabled={buttonText !== "Predict Genre"}
       >
-        {loading ? "Predicting..." : "Predict Genre"}
+        {buttonText}
       </button>
-
-      {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
-
-      {/* Display predicted genre */}
+  
+      {error && <p style={{ color: "#c0392b", marginTop: "10px" }}>{error}</p>}
+  
       {predictedGenre && (
-        <p style={{ fontSize: "24px", marginTop: "20px" }}>
+        <p style={{ fontSize: "24px", marginTop: "24px" }}>
           Predicted Genre: <b>{predictedGenre}</b>
         </p>
       )}
-
-      {/* Display the bar chart */}
+  
       {genreProbs && (
-        <div style={{ width: "60%", margin: "30px auto" }}>
+        <div style={{ width: "60%", margin: "auto" }}>
           <Bar
             data={{
               labels: genreProbs.genres,
@@ -106,44 +153,31 @@ function App() {
                 {
                   label: "Probability",
                   data: genreProbs.probabilities,
-                  backgroundColor: "rgba(54, 162, 235, 0.6)",
-                  borderColor: "rgba(54, 162, 235, 1)",
+                  backgroundColor: "rgba(52, 152, 219, 0.2)",
+                  borderColor: "rgba(52, 152, 219)",
                   borderWidth: 1,
                 },
               ],
             }}
             options={{
-              indexAxis: "y", // Horizontal bar chart
+              indexAxis: "y",
               scales: {
-                x: { beginAtZero: true,
-                  display: false,
-                 },
+                x: { beginAtZero: true, display: false },
                 y: {
-                  grid: {
-                    display: false,
-                  },
-                  ticks: {
-                    font: {
-                      family: "Rajdhani",
-                    },
-                  },
+                  grid: { display: false },
+                  ticks: { font: { family: "Rajdhani" } },
                 },
               },
               plugins: {
-                legend: {
-                  labels: {
-                    font: {
-                      family: "Rajdhani",
-                    },
-                  },
-                },
+                legend: { labels: { font: { family: "Rajdhani" } } },
               },
             }}
           />
         </div>
       )}
     </div>
-  );
+  );  
+  
 }
 
 export default App;
