@@ -22,10 +22,13 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
+app.json.sort_keys = False
 
-df = pd.read_csv("data/features_3_sec.csv")
-df["label"] = df["label"].str.capitalize()
+df = pd.read_csv("data/features_30_sec.csv")
+df["label"] = df["label"].str.capitalize().replace("Hiphop", "Hip-hop")
 df.drop("length", axis=1, inplace=True)
+df = df[df["label"] != "Disco"]
+df = df[df["label"] != "Reggae"]
 
 features = df.iloc[:, 1:58]
 scaler = StandardScaler()
@@ -97,7 +100,7 @@ def extract_segment_features(y, sr=22050):
 def extract_full_features(filename):
     y, sr = librosa.load(filename, sr=22050)
 
-    segment_length = 3 * sr
+    segment_length = 30 * sr
     segments = librosa.util.frame(y, frame_length=segment_length, hop_length=segment_length).T
 
     with ThreadPoolExecutor() as executor:
@@ -139,10 +142,14 @@ def predict():
             outputs = model(features_tensor)
             probabilities = torch.nn.functional.softmax(outputs, dim=1)
     
-            pred_class = torch.argmax(probabilities, dim=1).item()
-            pred_genre = label_encoder.inverse_transform([pred_class])[0]
+            genre_probabilities = {}
+            for idx, probability in enumerate(probabilities[0]):
+                genre = label_encoder.inverse_transform([idx])[0]
+                genre_probabilities[genre] = probability.item() * 100
 
-            return jsonify({"pred_genre": pred_genre})
+            sorted_genre_probabilities = dict(sorted(genre_probabilities.items(), key=lambda x: x[1], reverse=True))
+
+            return jsonify({"genre_probabilities": sorted_genre_probabilities})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
