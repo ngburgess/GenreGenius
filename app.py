@@ -29,8 +29,6 @@ app.json.sort_keys = False
 df = pd.read_csv("data/features_30_sec.csv")
 df["label"] = df["label"].str.capitalize().replace("Hiphop", "Hip-hop")
 df.drop("length", axis=1, inplace=True)
-df = df[df["label"] != "Disco"]
-df = df[df["label"] != "Reggae"]
 
 features = df.iloc[:, 1:58]
 scaler = StandardScaler()
@@ -43,9 +41,9 @@ y = label_encoder.fit_transform(target)
 class GenreClassifier(nn.Module):
     def __init__(self, input_features, output_features):
         super(GenreClassifier, self).__init__()
-        self.fc1 = nn.Linear(input_features, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, output_features)
+        self.fc1 = nn.Linear(input_features, 48)
+        self.fc2 = nn.Linear(48, 24)
+        self.fc3 = nn.Linear(24, output_features)
         self.relu = nn.ReLU()
 
     def forward(self, x):

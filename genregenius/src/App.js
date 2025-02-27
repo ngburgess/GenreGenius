@@ -7,10 +7,12 @@ const genreIcons = {
   "Blues": "🎹",
   "Classical": "🎻",
   "Country": "🪕",
+  "Disco": "🪩",
   "Hip-hop": "🎧",
   "Jazz": "🎷",
   "Metal": "👨‍🎤",
   "Pop": "🎤",
+  "Reggae": "🌴",
   "Rock": "🎸",
 };
 
@@ -79,10 +81,10 @@ function App() {
             width: "100%",
             height: "100%",
             backgroundImage: `linear-gradient(to left, white, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0) 50%, white), url(${soundwaves})`,
-            backgroundSize: "120%",
+            backgroundSize: "150%",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
-            opacity: 0.24,
+            opacity: 0.2,
             filter: "grayscale(100%)",
             zIndex: -1,
           }}
