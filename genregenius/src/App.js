@@ -37,7 +37,7 @@ function App() {
     setPredictedGenre("");
     setGenreProbs(null);
   
-    const eventSource = new EventSource(`https://184.72.113.139:5000/predict?url=${encodeURIComponent(youtubeUrl)}`);
+    const eventSource = new EventSource(`https://44.206.109.137:5000/predict?url=${encodeURIComponent(youtubeUrl)}`);
   
     eventSource.addEventListener("progress", (event) => {
       setButtonText(event.data);
