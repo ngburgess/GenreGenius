@@ -2,7 +2,7 @@
 FROM python:3.11
 
 # Install Rust and Cargo before installing Python dependencies
-RUN apt-get update && apt-get install -y cargo
+RUN apt-get update && apt-get install -y cargo && apt-get install -y curl ffmpeg
 
 # Set the working directory in the container
 WORKDIR /app
