@@ -32,7 +32,7 @@ function App() {
     formData.append("song_file", selectedFile);
 
     try {
-      const response = await axios.post("http://44.198.230.231:5000/predict", formData, {
+      const response = await axios.post("https://44.198.230.231:5000/predict", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
