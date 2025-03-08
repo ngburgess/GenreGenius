@@ -32,7 +32,7 @@ function App() {
     formData.append("song_file", selectedFile);
 
     try {
-      const response = await axios.post("https://genregenius.app/predict", formData, {
+      const response = await axios.post("https://main.dlwl5k43k64vj.amplifyapp.com/predict", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
